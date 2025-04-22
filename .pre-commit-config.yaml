@@ -1,0 +1,41 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+
+default_language_version:
+    python: python3.10
+fail_fast: false
+
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+    -   id: check-yaml
+    -   id: check-toml
+    -   id: end-of-file-fixer
+    -   id: trailing-whitespace
+    -   id: check-added-large-files
+-   repo: https://github.com/asottile/reorder_python_imports
+    rev: v3.9.0
+    hooks:
+    -   id: reorder-python-imports
+        args: [--application-directories, ".:freelancers", --py310-plus]
+-   repo: https://github.com/asottile/pyupgrade
+    rev: v3.4.0
+    hooks:
+    -   id: pyupgrade
+        args: [--py310-plus]
+-   repo: https://github.com/asottile/add-trailing-comma
+    rev: v2.4.0
+    hooks:
+    -   id: add-trailing-comma
+-   repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.269
+    hooks:
+    -   id: ruff
+        args: ["--line-length=100"]  # Явно указываем длину строки
+-   repo: https://github.com/psf/black
+    rev: 23.3.0
+    hooks:
+    -   id: black
+        args: [--line-length, "100", --target-version, "py310"]
+#        additional_dependencies: ['click==8.0.4']
