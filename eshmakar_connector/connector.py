@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Конфигурация API
 API_TOKEN = os.getenv("ESHMAKAR_API_TOKEN")
+ESHMAKAR_COUNT_OF_PAGE_TO_PARSE = os.getenv("ESHMAKAR_COUNT_OF_PAGE_TO_PARSE")
 BASE_URL = "https://eshmakar.ru/API/V1"
 PARSE_AD_URL = f"{BASE_URL}/ads/parseAd"
 ADD_TASK_URL = f"{BASE_URL}/tasks/add"
@@ -102,7 +103,7 @@ def parse_ad(link_to_parse: str) -> dict[str, Any]:
 
 def add_task_to_parse(
     link: str,
-    count_of_page_to_parse: int = 100,
+    count_of_page_to_parse: int = ESHMAKAR_COUNT_OF_PAGE_TO_PARSE,
     send_report_to_email: bool = False,
     remove_duplicates: bool = True,
     seller_params: bool = False,

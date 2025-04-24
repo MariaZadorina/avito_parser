@@ -3,30 +3,10 @@ version: '3.8'
 services:
   app:
     build: .
-    ports:
-      - "8000:8000"
-    volumes:
-      - .:/app
+    network_mode: host
     environment:
       - PYTHONUNBUFFERED=1
-      - DATABASE_URL=postgresql+psycopg2://postgres:postgres@host.docker.internal:5433/postgres
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    command: bash -c "uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
-#    depends_on:
-#      - postgres
-
-
-#  postgres:
-#    image: postgres:17
-#    environment:
-#      - POSTGRES_USER=postgres
-#      - POSTGRES_PASSWORD=postgres
-#      - POSTGRES_DB=postgres
-#    volumes:
-#      - postgres_data:/var/lib/postgresql/data
-#    ports:
-#      - "5433:5432"
-
-#volumes:
-#  postgres_data:
+      - MYSQL_DATABASE_URL=mysql+pymysql://p_titan_corp:IQpN92rcdZy5yig1@localhost:3306/p_titan_corp
+    volumes:
+      - .:/app
+    restart: unless-stopped

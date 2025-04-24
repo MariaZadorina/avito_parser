@@ -18,7 +18,7 @@ class TaskAdmin(ModelView, model=Task):
     # Отображаемые колонки в списке задач
     column_list = [
         Task.status,
-        # Task.comment,
+        Task.comment,
         Task.link_to_google_sheet,
         Task.in_eshmakar_queue,
         Task.has_data_in_db,
@@ -34,7 +34,7 @@ class TaskAdmin(ModelView, model=Task):
         "title": "Заголовок",
         "has_data_in_db": "Данные в нашей бд",
         "in_eshmakar_queue": "В очереди eshmakar",
-        # "comment": "Комментарий",
+        "comment": "Комментарий",
     }
 
     # Колонки для формы редактирования

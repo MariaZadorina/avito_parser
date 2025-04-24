@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqladmin import Admin
 
+from database import Base
 from database import engine
 from database import SessionLocal
 from eshmakar_connector.admin import TaskAdmin
@@ -22,7 +23,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("eshmakar_api.log"),
+        logging.FileHandler("avito_parser.log"),
     ],
 )
 logger = logging.getLogger(__name__)
@@ -30,6 +31,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Создание всех таблиц в базе данных
+    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         init_default_schedules(db)
@@ -65,4 +68,4 @@ if __name__ == "__main__":
     logger.info("Start app")
     import uvicorn
 
-    uvicorn.run(app, host="localhost", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
