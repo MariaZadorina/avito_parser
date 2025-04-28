@@ -1,0 +1,25 @@
+name: Deploy FastAPI to Ubuntu Server
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: p.titan-corp.ru
+          username: ${{ secrets.SERVER_USERNAME }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          script: |
+            cd /var/www/p_titan_corp_usr/data/www/p.titan-corp.ru
+            git pull origin master
+            docker-compose down
+            docker-compose up -d --build

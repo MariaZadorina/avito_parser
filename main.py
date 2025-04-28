@@ -51,7 +51,14 @@ app.include_router(schedule_router)
 
 
 # Инициализация админ-панели
-admin = Admin(app, engine, title="My Admin Panel")
+admin = Admin(
+    app,
+    engine,
+    title="My Admin Panel",
+    base_url="/admin",
+)
+
+# Явно указываем базовый URL
 
 # Регистрация модели в админ-панели
 admin.add_view(TaskAdmin)
