@@ -148,7 +148,6 @@ def process_sheet_data(csv_data: str, sheet_id: str, task_id: int, db: Session) 
                         source_task_id=task_id,
                         row_data=row,
                         row_hash=row_hash,
-                        is_exported=False,
                     )
                     db.add(record)
                     new_records += 1

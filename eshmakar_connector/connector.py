@@ -1,20 +1,16 @@
 import json
 import logging
-import os
 from datetime import datetime
 from typing import Any
 
 import requests
-from dotenv import load_dotenv
 
-# Загружаем переменные окружения из файла .env
-load_dotenv()
+from settings import API_TOKEN
+from settings import ESHMAKAR_COUNT_OF_PAGE_TO_PARSE
 
 logger = logging.getLogger(__name__)
 
 # Конфигурация API
-API_TOKEN = os.getenv("ESHMAKAR_API_TOKEN")
-ESHMAKAR_COUNT_OF_PAGE_TO_PARSE = os.getenv("ESHMAKAR_COUNT_OF_PAGE_TO_PARSE")
 BASE_URL = "https://eshmakar.ru/API/V1"
 PARSE_AD_URL = f"{BASE_URL}/ads/parseAd"
 ADD_TASK_URL = f"{BASE_URL}/tasks/add"

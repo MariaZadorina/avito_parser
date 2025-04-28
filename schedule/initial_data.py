@@ -29,12 +29,12 @@ DEFAULT_SCHEDULES = [
         "interval_minutes": 9,
         "is_active": True,
     },
-    # {
-    #     "task_name": "cleanup_tasks",
-    #     "description": "Очистка старых завершенных задач",
-    #     "interval_minutes": 1440,  # 24 часа
-    #     "is_active": True
-    # },
+    {
+        "task_name": "reset_daily_tasks",
+        "description": "Сброс статусов задач в START_TIME каждый день. ",
+        "interval_minutes": 10,
+        "is_active": True,
+    },
 ]
 
 

@@ -2,14 +2,17 @@ import logging
 from datetime import datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy.orm import Session
 
 from database import SessionLocal
 from eshmakar_connector.tasks import enqueue_one_task_for_parsing
+from eshmakar_connector.tasks import reset_daily_tasks
 from eshmakar_connector.tasks import update_last_task_status_from_eshmakar
 from google_sheet.service import fetch_and_process_sheets
 from schedule.models import TaskSchedule
+from settings import START_TIME
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
@@ -58,15 +61,23 @@ def add_task_to_scheduler(db: Session, task: TaskSchedule):
             f"Добавление задачи '{task.task_name}' с интервалом {task.interval_minutes} минут. "
             f"Следующий запуск: {task.next_run or 'немедленно'}",
         )
-
-        scheduler.add_job(
-            run_scheduled_task,
-            trigger=IntervalTrigger(minutes=task.interval_minutes),
-            args=[task.id],
-            id=task.task_name,
-            next_run_time=task.next_run or datetime.now(),
-            replace_existing=True,
-        )
+        if task.task_name == "reset_daily_tasks":
+            scheduler.add_job(
+                reset_daily_tasks,
+                trigger=CronTrigger(hour=START_TIME, minute=0),  # Каждый день в 21:00
+                args=[task.id],
+                id=task.task_name,
+                replace_existing=True,
+            )
+        else:
+            scheduler.add_job(
+                run_scheduled_task,
+                trigger=IntervalTrigger(minutes=task.interval_minutes),
+                args=[task.id],
+                id=task.task_name,
+                next_run_time=task.next_run or datetime.now(),
+                replace_existing=True,
+            )
         logger.info(f"Задача '{task.task_name}' успешно добавлена в планировщик")
     except Exception as e:
         logger.error(f"Ошибка добавления задачи '{task.task_name}': {e}", exc_info=True)
@@ -93,6 +104,8 @@ def run_scheduled_task(task_id: int):
             update_last_task_status_from_eshmakar(db)
         elif task.task_name == "fetch_and_process_sheets":
             fetch_and_process_sheets(db)
+        elif task.task_name == "reset_daily_tasks":
+            reset_daily_tasks(db)
         else:
             logger.warning(f"Неизвестный тип задачи: {task.task_name}")
 

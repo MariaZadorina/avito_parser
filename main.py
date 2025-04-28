@@ -59,10 +59,6 @@ admin.add_view(GoogleSheetRecordAdmin)
 admin.add_view(TaskScheduleAdmin)
 
 
-def job_error_listener(event):
-    print(f"Ошибка в задаче {event.job_id}: {event.exception}")
-
-
 # Для запуска приложения через uvicorn
 if __name__ == "__main__":
     logger.info("Start app")

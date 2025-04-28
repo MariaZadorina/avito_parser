@@ -1,19 +1,58 @@
 import logging
 from datetime import datetime
+from datetime import time
 from urllib.parse import parse_qs
 from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session
 
+from database import SessionLocal
 from eshmakar_connector.connector import add_task_to_parse
 from eshmakar_connector.connector import fetch_last_task
 from eshmakar_connector.connector import fetch_tasks
 from eshmakar_connector.models import Task
 from eshmakar_connector.models import TaskStatus
+from settings import END_TIME
+from settings import START_TIME
+
+# Загружаем переменные окружения из файла .env
 
 
 # Настройка логирования
 logger = logging.getLogger(__name__)
+
+
+def is_time_window_active() -> bool:
+    """Проверяет, что сейчас 21:00–03:00."""
+    now = datetime.now().time()
+    return time(START_TIME, 0) <= now or now <= time(END_TIME, 0)
+
+
+def reset_daily_tasks(db: Session):
+    """Сброс статусов задач в START_TIME каждый день."""
+    db_session = SessionLocal()
+    if not is_time_window_active():  # Проверяем 21:00–03:00
+        return
+    try:
+        db_session.query(Task).filter(
+            Task.status != TaskStatus.ERROR,
+        ).update(
+            {
+                "status": TaskStatus.IN_PROGRESS,
+                "link_to_google_sheet": None,
+                "has_data_in_db": False,
+                "in_eshmakar_queue": False,
+                "parsed_date": None,
+            },
+        )
+        logger.info("Ежедневный сброс задач выполнен успешно")
+        db_session.commit()
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Ошибка сброса задач: {str(e)}")
+        raise
+    finally:
+        db_session.close()
 
 
 def enqueue_one_task_for_parsing(db_session: Session):
@@ -24,6 +63,8 @@ def enqueue_one_task_for_parsing(db_session: Session):
     Args:
         db_session: Сессия базы данных SQLAlchemy
     """
+    if not is_time_window_active():  # Проверяем 21:00–03:00
+        return
     # Проверяем, есть ли задачи без ссылки на Google таблицу
     tasks_without_sheet = (
         db_session.query(Task)
@@ -83,6 +124,8 @@ def update_last_task_status_from_eshmakar(db_session: Session):
     Args:
         db_session: Сессия базы данных SQLAlchemy
     """
+    if not is_time_window_active():  # Проверяем 21:00–03:00
+        return
 
     # Ищем единстенную задачу которая в очереди у eshmakar но у неё нет ссылки на гугл таблицу
     task = (
@@ -108,7 +151,6 @@ def update_last_task_status_from_eshmakar(db_session: Session):
         logger.error(f"Ошибка при получении задачи из eshmakar API: {str(e)}")
         return
 
-    updated_count = 0
     try:
         # Обновляем поля задачи
         if "id" in eshmakar_task:
@@ -133,9 +175,7 @@ def update_last_task_status_from_eshmakar(db_session: Session):
         if "title" in eshmakar_task:
             task.title = eshmakar_task["title"]
 
-        updated_count += 1
         logger.debug(f"Задача {task.id} успешно обновлена")
-
     except Exception as e:
         logger.error(
             f"Ошибка при обновлении задачи {task.id}: {str(e)}",
@@ -301,62 +341,3 @@ def update_tasks_status_from_eshmakar(db_session: Session):
             )
 
     logger.info(f"Обновлено {updated_count} из {len(pending_tasks)} задач")
-
-
-# def put_tasks_in_queue(db: Session):
-#     tasks = db.query(Task).filter(Task.status == TaskStatus.IN_PROGRESS).all()
-#     for task in tasks:
-#         result = add_task_to_parse(link=task.link_to_parse)
-#         if result == "Задача успешно добавлена":
-#             task.in_eshmakar_queue = True
-#
-#
-# def compare_urls(url1, url2):
-#     # Разбираем URL
-#     parsed_url1 = urlparse(url1)
-#     parsed_url2 = urlparse(url2)
-#
-#     # Сравниваем схемы, хосты и пути
-#     return (parsed_url1.scheme == parsed_url2.scheme and
-#             parsed_url1.netloc == parsed_url2.netloc and
-#             parsed_url1.path == parsed_url2.path)
-#
-#
-# def check_tasks_status(db: Session):
-#     tasks = db.query(Task).filter(Task.status == TaskStatus.IN_PROGRESS).all()
-#     eshmakar_dict, updated_data = {}, {}
-#
-#     if tasks:
-#         eshmakar_tasks = fetch_tasks()
-#         eshmakar_dict = {task['linkToParse']: task for task in eshmakar_tasks}
-#
-#     for task in tasks:
-#         # Используем compare_urls для проверки наличия ссылки в словаре
-#         found_match = False
-#         for link in eshmakar_dict.keys():
-#             if compare_urls(task.link_to_parse, link):
-#                 updated_data = eshmakar_dict[link]
-#                 found_match = True
-#                 break
-#
-#         if found_match:
-#             try:
-#                 # Обновляем поля с проверкой на наличие
-#                 if 'id' in updated_data:
-#                     task.external_id = updated_data['id']
-#
-#                 if 'parsedDate' in updated_data and updated_data['parsedDate']:
-#                     task.parsed_date = datetime.fromtimestamp(updated_data['parsedDate'] / 1000)
-#
-#                 if 'linkToGoogleSheet' in updated_data:
-#                     task.link_to_google_sheet = updated_data['linkToGoogleSheet']
-#
-#                 if 'status' in updated_data:
-#                     task.status = TaskStatus(updated_data['status'])  # Конвертация в enum
-#
-#                 if 'title' in updated_data:
-#                     task.title = updated_data['title']
-#
-#             except ValueError as e:
-#                 print(f"Ошибка при обновлении задачи {task.id}: {e}")
-#                 continue
