@@ -6,13 +6,13 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy.orm import Session
 
+from app_settings.models import Settings
 from database import SessionLocal
 from eshmakar_connector.tasks import enqueue_one_task_for_parsing
 from eshmakar_connector.tasks import reset_daily_tasks
 from eshmakar_connector.tasks import update_last_task_status_from_eshmakar
 from google_sheet.service import fetch_and_process_sheets
 from schedule.models import TaskSchedule
-from settings import START_TIME
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
@@ -57,6 +57,7 @@ def shutdown_scheduler():
 def add_task_to_scheduler(db: Session, task: TaskSchedule):
     """Добавление задачи в планировщик с подробным логированием"""
     try:
+        start_time = Settings.get_start_time()
         logger.info(
             f"Добавление задачи '{task.task_name}' с интервалом {task.interval_minutes} минут. "
             f"Следующий запуск: {task.next_run or 'немедленно'}",
@@ -64,7 +65,7 @@ def add_task_to_scheduler(db: Session, task: TaskSchedule):
         if task.task_name == "reset_daily_tasks":
             scheduler.add_job(
                 reset_daily_tasks,
-                trigger=CronTrigger(hour=START_TIME, minute=0),  # Каждый день в 21:00
+                trigger=CronTrigger(hour=start_time, minute=0),  # Каждый день в 21:00
                 args=[task.id],
                 id=task.task_name,
                 replace_existing=True,
@@ -82,6 +83,25 @@ def add_task_to_scheduler(db: Session, task: TaskSchedule):
     except Exception as e:
         logger.error(f"Ошибка добавления задачи '{task.task_name}': {e}", exc_info=True)
         raise
+
+
+def update_start_time_scheduled_task(start_time: int):
+    """
+    Обновляет или создает задачу в планировщике
+
+    :param start_time: Час запуска (0-23)
+    """
+    trigger = CronTrigger(hour=start_time, minute=0)
+
+    try:
+        # Пытаемся обновить существующую задачу
+        scheduler.reschedule_job(
+            job_id="reset_daily_tasks",
+            trigger=trigger
+        )
+        print(f"Задача reset_daily_tasks обновлена на {start_time}:00")
+    except Exception:
+        print(f"Обновить время не удалось")
 
 
 def run_scheduled_task(task_id: int):
@@ -110,6 +130,7 @@ def run_scheduled_task(task_id: int):
             logger.warning(f"Неизвестный тип задачи: {task.task_name}")
 
         task.last_run = datetime.now()
+        task.update_next_run()
         db.commit()
 
         duration = (datetime.now() - start_time).total_seconds()

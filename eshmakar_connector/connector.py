@@ -5,8 +5,7 @@ from typing import Any
 
 import requests
 
-from settings import API_TOKEN
-from settings import ESHMAKAR_COUNT_OF_PAGE_TO_PARSE
+from app_settings.models import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -17,16 +16,18 @@ ADD_TASK_URL = f"{BASE_URL}/tasks/add"
 TASKS_URL = f"{BASE_URL}/tasks/all"
 LAST_TASK_URL = f"{BASE_URL}/tasks/last"
 
-HEADERS = {
-    "Token": API_TOKEN,
-    "Content-Type": "application/json",
-}
-
 
 class EshmakarAPIError(Exception):
     """Базовый класс для ошибок API"""
 
     pass
+
+
+def get_headers():
+    return {
+        "Token": Settings.get_eshmakar_api_token(),
+        "Content-Type": "application/json",
+    }
 
 
 def _handle_response(response: requests.Response) -> dict[str, Any] | None:
@@ -87,7 +88,7 @@ def parse_ad(link_to_parse: str) -> dict[str, Any]:
     data = {"linkToParse": link_to_parse}
 
     try:
-        response = requests.post(PARSE_AD_URL, headers=HEADERS, json=data)
+        response = requests.post(PARSE_AD_URL, headers=get_headers(), json=data)
         result = _handle_response(response)
         _save_to_json(result, "ad_response")
         logger.info("Парсинг объявления выполнен успешно")
@@ -99,7 +100,7 @@ def parse_ad(link_to_parse: str) -> dict[str, Any]:
 
 def add_task_to_parse(
     link: str,
-    count_of_page_to_parse: int = ESHMAKAR_COUNT_OF_PAGE_TO_PARSE,
+    count_of_page_to_parse: int = Settings.get_count_of_page_to_parse(),
     send_report_to_email: bool = False,
     remove_duplicates: bool = True,
     seller_params: bool = False,
@@ -134,7 +135,7 @@ def add_task_to_parse(
     }
 
     try:
-        response = requests.post(ADD_TASK_URL, headers=HEADERS, json=data)
+        response = requests.post(ADD_TASK_URL, headers=get_headers(), json=data)
         # Проверка кода состояния ответа
         if response.status_code == 200:
             logger.info(f"Успешно 200: {response.text}")
@@ -163,7 +164,7 @@ def fetch_tasks() -> list[dict[str, Any]]:
     logger.info("Запрос списка задач")
 
     try:
-        response = requests.get(TASKS_URL, headers=HEADERS)
+        response = requests.get(TASKS_URL, headers=get_headers())
         tasks = _handle_response(response)
         _save_to_json(tasks, "tasks")
         logger.info(f"Получено {len(tasks)} задач")
@@ -186,7 +187,7 @@ def fetch_last_task() -> dict[str, Any]:
     logger.info("Запрос последней задачи")
 
     try:
-        response = requests.get(LAST_TASK_URL, headers=HEADERS)
+        response = requests.get(LAST_TASK_URL, headers=get_headers())
         task = _handle_response(response)
         _save_to_json(task, "last_task")
         print(task)
@@ -206,7 +207,7 @@ if __name__ == "__main__":
         # Пример добавления задачи
         task_result = add_task_to_parse(
             link="https://www.avito.ru/moskva_i_mo/kvartiry/sdam/na_dlitelnyy_srok-ASgBAgICAkSSA8gQ8AeQUg?cd=1",
-            count_of_page_to_parse=2,
+            count_of_page_to_parse=1,
         )
         logger.info(task_result)
 

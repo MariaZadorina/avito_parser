@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqladmin import Admin
 
+from app_settings.admin import SettingsAdmin
+from app_settings.init_settings import init_settings
 from database import Base
 from database import engine
 from database import SessionLocal
@@ -15,7 +17,6 @@ from schedule.initial_data import init_default_schedules
 from schedule.routers import schedule_router
 from schedule.service import init_scheduler
 from schedule.service import shutdown_scheduler
-
 
 # Настройка логирования
 logging.basicConfig(
@@ -35,6 +36,7 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
+        init_settings(db)
         init_default_schedules(db)
         init_scheduler(db)
 
@@ -64,6 +66,7 @@ admin = Admin(
 admin.add_view(TaskAdmin)
 admin.add_view(GoogleSheetRecordAdmin)
 admin.add_view(TaskScheduleAdmin)
+admin.add_view(SettingsAdmin)
 
 
 # Для запуска приложения через uvicorn

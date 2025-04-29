@@ -6,32 +6,45 @@ from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session
 
+from app_settings.models import Settings
 from database import SessionLocal
 from eshmakar_connector.connector import add_task_to_parse
 from eshmakar_connector.connector import fetch_last_task
 from eshmakar_connector.connector import fetch_tasks
 from eshmakar_connector.models import Task
 from eshmakar_connector.models import TaskStatus
-from settings import END_TIME
-from settings import START_TIME
-
-# Загружаем переменные окружения из файла .env
 
 
 # Настройка логирования
 logger = logging.getLogger(__name__)
 
 
-def is_time_window_active() -> bool:
-    """Проверяет, что сейчас 21:00–03:00."""
-    now = datetime.now().time()
-    return time(START_TIME, 0) <= now or now <= time(END_TIME, 0)
+def is_task_processing_ready() -> bool:
+    try:
+        db = SessionLocal()
+        start_time = Settings.get_start_time()
+        current_time = datetime.now().time()
+
+        # Проверяем временное условие
+        if current_time < time(start_time, 0):
+            return False
+
+        # Проверяем наличие необработанных задач
+        has_pending_tasks = db.query(
+            db.query(Task).filter(Task.in_eshmakar_queue is False).exists(),
+        ).scalar()
+
+        return has_pending_tasks
+
+    except Exception as e:
+        logger.error(f"Error checking time window: {e}")
+        return False
 
 
 def reset_daily_tasks(db: Session):
     """Сброс статусов задач в START_TIME каждый день."""
     db_session = SessionLocal()
-    if not is_time_window_active():  # Проверяем 21:00–03:00
+    if not is_task_processing_ready():  # Проверяем 21:00–03:00
         return
     try:
         db_session.query(Task).filter(
@@ -63,7 +76,7 @@ def enqueue_one_task_for_parsing(db_session: Session):
     Args:
         db_session: Сессия базы данных SQLAlchemy
     """
-    if not is_time_window_active():  # Проверяем 21:00–03:00
+    if not is_task_processing_ready():  # Проверяем 21:00–03:00
         return
     # Проверяем, есть ли задачи без ссылки на Google таблицу
     tasks_without_sheet = (
@@ -124,7 +137,7 @@ def update_last_task_status_from_eshmakar(db_session: Session):
     Args:
         db_session: Сессия базы данных SQLAlchemy
     """
-    if not is_time_window_active():  # Проверяем 21:00–03:00
+    if not is_task_processing_ready():  # Проверяем 21:00–03:00
         return
 
     # Ищем единстенную задачу которая в очереди у eshmakar но у неё нет ссылки на гугл таблицу
